@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVA Causal Loop Diagrams — SC Metrics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:linear-gradient(145deg,#F0EDEA,#E8E4DF);
+    font-family:'DM Sans',sans-serif;
+    display:flex;justify-content:center;align-items:flex-start;
+    min-height:100vh;padding:24px;
+  }
+  .container{width:1020px;max-width:100%;}
+
+  /* Title */
+  .title-bar{text-align:center;margin-bottom:18px;}
+  .title-bar h1{
+    font-family:'Playfair Display',serif;font-size:26px;
+    color:#1B3A35;letter-spacing:-0.5px;font-weight:800;
+  }
+  .title-bar .subtitle{
+    font-size:12px;color:#7A8A86;margin-top:5px;
+    letter-spacing:1.5px;text-transform:uppercase;font-weight:600;
+  }
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:0;}
+  .tab{
+    flex:1;padding:13px 20px;
+    background:#E8E5E0;border-radius:14px 14px 0 0;
+    cursor:pointer;text-align:center;
+    font-family:'DM Sans';font-size:13px;font-weight:700;
+    color:#7A8A86;transition:all 0.3s ease;
+    border:1px solid transparent;border-bottom:none;
+    position:relative;
+  }
+  .tab:hover{background:#F0EDEA;color:#1B3A35;}
+  .tab.active-turnover{
+    background:#FFFFFF;color:#004D40;
+    border-color:rgba(0,77,64,0.08);
+    box-shadow:0 -2px 10px rgba(0,77,64,0.05);
+  }
+  .tab.active-cost{
+    background:#FFFFFF;color:#4A148C;
+    border-color:rgba(74,20,156,0.08);
+    box-shadow:0 -2px 10px rgba(74,20,156,0.05);
+  }
+  .tab.active-capital{
+    background:#FFFFFF;color:#E65100;
+    border-color:rgba(230,81,0,0.08);
+    box-shadow:0 -2px 10px rgba(230,81,0,0.05);
+  }
+  .tab .tab-icon{font-size:16px;margin-right:6px;}
+  .tab .tab-sub{font-size:10px;font-weight:500;color:#999;display:block;margin-top:2px;}
+
+  /* Panels */
+  .panel-wrap{
+    background:#FFFFFF;
+    border-radius:0 0 20px 20px;
+    box-shadow:0 8px 40px rgba(0,50,40,0.08),0 1px 3px rgba(0,0,0,0.04);
+    border:1px solid rgba(0,77,64,0.06);border-top:none;
+    overflow:hidden;position:relative;
+  }
+  .panel{display:none;animation:panelIn 0.4s ease;}
+  .panel.active{display:block;}
+  @keyframes panelIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  .diagram-area{
+    width:100%;aspect-ratio:10/8;
+    background:radial-gradient(ellipse at 50% 45%,#FFFFFF,#F7F9F8);
+    overflow:hidden;
+  }
+  svg{width:100%;height:100%;}
+
+  /* Flow animations */
+  @keyframes flow{from{stroke-dashoffset:0;}to{stroke-dashoffset:-40;}}
+  @keyframes flowReverse{from{stroke-dashoffset:0;}to{stroke-dashoffset:40;}}
+  @keyframes softPulse{
+    0%,100%{filter:drop-shadow(0 0 0 transparent);transform:scale(1);}
+    50%{filter:drop-shadow(0 2px 12px rgba(0,77,64,0.15));transform:scale(1.01);}
+  }
+  @keyframes loopSpin{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+
+  .flow-teal{stroke-dasharray:12 8;animation:flow 0.6s linear infinite;}
+  .flow-blue{stroke-dasharray:12 8;animation:flow 0.6s linear infinite;}
+  .flow-orange{stroke-dasharray:12 8;animation:flow 0.6s linear infinite;}
+  .flow-purple{stroke-dasharray:12 8;animation:flow 0.55s linear infinite;}
+  .flow-indigo{stroke-dasharray:12 8;animation:flow 0.55s linear infinite;}
+  .flow-rose{stroke-dasharray:12 8;animation:flow 0.55s linear infinite;}
+  .flow-amber{stroke-dasharray:12 8;animation:flow 0.55s linear infinite;}
+  .flow-tealdk{stroke-dasharray:12 8;animation:flow 0.55s linear infinite;}
+  .central-c{animation:softPulse 4s ease-in-out infinite;transform-origin:500px 390px;}
+  .central-k{animation:softPulse 4s ease-in-out infinite;transform-origin:500px 390px;}
+  .base-path{opacity:0.12;}
+  .central-t{animation:softPulse 4s ease-in-out infinite;transform-origin:500px 390px;}
+
+  /* Footer */
+  .footer-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:14px;padding:0 4px;flex-wrap:wrap;gap:8px;
+  }
+  .legend{display:flex;gap:16px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#7A8A86;font-weight:500;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+  .credit{font-size:11px;color:#1B3A35;font-weight:700;letter-spacing:0.3px;}
+  .footnote{text-align:center;font-size:10px;color:#AAA;margin-top:8px;}
+
+  /* Explanation cards */
+  .explanations{
+    display:grid;gap:14px;padding:20px 24px 22px;
+    border-top:1px solid #EDEAE6;
+  }
+  .explanations.cols-3{grid-template-columns:1fr 1fr 1fr;}
+  .explanations.cols-2{grid-template-columns:1fr 1fr;}
+  .exp-card{
+    background:#FCFCFB;border-radius:12px;padding:16px 18px;
+    border:1px solid #E8E5E0;position:relative;overflow:hidden;
+  }
+  .exp-card .exp-bar{
+    position:absolute;top:0;left:0;width:100%;height:4px;border-radius:12px 12px 0 0;
+  }
+  .exp-card .exp-tag{
+    font-family:'DM Sans';font-weight:800;font-size:11px;
+    letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;
+  }
+  .exp-card h3{
+    font-family:'Playfair Display',serif;font-size:14px;font-weight:800;
+    margin-bottom:8px;color:#1B3A35;
+  }
+  .exp-card p{
+    font-size:11px;line-height:1.7;color:#424242;margin:0;
+  }
+  .exp-card p strong{font-weight:700;}
+
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title-bar">
+    <h1>EVA Causal Loop Diagrams — Supply Chain Levers</h1>
+    <div class="subtitle">How SC improvements drive Economic Value Added (EVA)</div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active-turnover" id="tab1" onclick="switchTab(1)">
+      <span class="tab-icon">📈</span> Lever 1: Increase Turnover (Revenue)
+      <span class="tab-sub">Service · Loyalty · Market loops</span>
+    </div>
+    <div class="tab" id="tab2" onclick="switchTab(2)">
+      <span class="tab-icon">💰</span> Lever 2: Improve Margins
+      <span class="tab-sub">Direct · Indirect · Overhead loops</span>
+    </div>
+    <div class="tab" id="tab3" onclick="switchTab(3)">
+      <span class="tab-icon">🏗️</span> Lever 3: Reduce Capital
+      <span class="tab-sub">Working capital · Fixed assets loops</span>
+    </div>
+  </div>
+
+  <!-- PANEL WRAP -->
+  <div class="panel-wrap">
+
+    <!-- ============================================================ -->
+    <!-- PANEL 1: TURNOVER CLD                                        -->
+    <!-- ============================================================ -->
+    <div class="panel active" id="panel1">
+      <div class="diagram-area">
+        <svg viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="at" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#00897B"/></marker>
+            <marker id="ab" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#1565C0"/></marker>
+            <marker id="ao" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#D84315"/></marker>
+            <filter id="gt" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+            <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.6" fill="#D0CBC5" opacity="0.5"/></pattern>
+          </defs>
+          <rect width="1000" height="800" fill="url(#dots)"/>
+
+          <!-- R1 Loop Path -->
+          <path class="base-path" d="M 390,385 C 300,350 170,310 155,265 C 100,265 30,340 30,430 C 30,520 60,580 130,600 C 180,630 250,660 310,650 C 380,640 430,580 440,425" fill="none" stroke="#00897B" stroke-width="6"/>
+          <path class="flow-teal" d="M 390,385 C 300,350 170,310 155,265 C 100,265 30,340 30,430 C 30,520 60,580 130,600 C 180,630 250,660 310,650 C 380,640 430,580 440,425" fill="none" stroke="#00897B" stroke-width="3" marker-end="url(#at)" filter="url(#gt)"/>
+
+          <!-- R2 Loop Path -->
+          <path class="base-path" d="M 460,370 C 430,280 390,180 370,140 C 400,80 500,45 580,45 C 660,45 750,70 790,140 C 820,200 830,280 800,340 C 770,370 710,385 650,390" fill="none" stroke="#1565C0" stroke-width="6"/>
+          <path class="flow-blue" d="M 460,370 C 430,280 390,180 370,140 C 400,80 500,45 580,45 C 660,45 750,70 790,140 C 820,200 830,280 800,340 C 770,370 710,385 650,390" fill="none" stroke="#1565C0" stroke-width="3" marker-end="url(#ab)" filter="url(#gt)"/>
+
+          <!-- R3 Loop Path -->
+          <path class="base-path" d="M 640,410 C 720,440 840,420 880,450 C 940,490 960,570 920,630 C 880,690 770,700 680,660 C 600,620 560,530 555,425" fill="none" stroke="#D84315" stroke-width="6"/>
+          <path class="flow-orange" d="M 640,410 C 720,440 840,420 880,450 C 940,490 960,570 920,630 C 880,690 770,700 680,660 C 600,620 560,530 555,425" fill="none" stroke="#D84315" stroke-width="3" marker-end="url(#ao)"/>
+
+          <!-- Central Node -->
+          <g class="central-t">
+            <rect x="400" y="365" width="200" height="56" rx="28" fill="#1B3A35"/>
+            <text x="500" y="389" text-anchor="middle" font-family="Playfair Display,serif" font-size="17" fill="#FFF" font-weight="800">↑ TURNOVER</text>
+            <text x="500" y="407" text-anchor="middle" font-family="DM Sans" font-size="10" fill="#80CBC4" font-weight="600">(Revenue)</text>
+          </g>
+
+          <!-- R1 Nodes -->
+          <rect x="70" y="220" width="170" height="50" rx="25" fill="#FFF" stroke="#00897B" stroke-width="1.8"/>
+          <text x="155" y="243" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↑ Better Service</text>
+          <text x="155" y="258" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86" font-weight="500">Levels</text>
+
+          <rect x="45" y="555" width="170" height="50" rx="25" fill="#FFF" stroke="#00897B" stroke-width="1.8"/>
+          <text x="130" y="578" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↓ Fewer Stockouts</text>
+          <text x="130" y="593" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">product always available</text>
+
+          <rect x="240" y="635" width="170" height="50" rx="25" fill="#FFF" stroke="#00897B" stroke-width="1.8"/>
+          <text x="325" y="658" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↑ More Sales</text>
+          <text x="325" y="673" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86">Captured</text>
+
+          <!-- R2 Nodes -->
+          <rect x="290" y="105" width="175" height="50" rx="25" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="378" y="128" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#1A237E" font-weight="700">↑ Faster Order</text>
+          <text x="378" y="143" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86">Fulfilment</text>
+
+          <rect x="620" y="105" width="175" height="50" rx="25" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="708" y="128" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#1A237E" font-weight="700">↑ Customer</text>
+          <text x="708" y="143" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86">Satisfaction</text>
+
+          <rect x="730" y="290" width="175" height="50" rx="25" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="818" y="313" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#1A237E" font-weight="700">↑ Higher Retention</text>
+          <text x="818" y="328" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">& repeat purchases</text>
+
+          <!-- R3 Nodes -->
+          <rect x="810" y="435" width="175" height="50" rx="25" fill="#FFF" stroke="#D84315" stroke-width="1.8"/>
+          <text x="898" y="458" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#BF360C" font-weight="700">↑ Wider Product</text>
+          <text x="898" y="473" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86">Availability</text>
+
+          <rect x="780" y="630" width="185" height="50" rx="25" fill="#FFF" stroke="#D84315" stroke-width="1.8"/>
+          <text x="873" y="653" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#BF360C" font-weight="700">↑ Larger Addressable</text>
+          <text x="873" y="668" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#7A8A86">Market</text>
+
+          <!-- Loop Labels -->
+          <g transform="translate(210,460)">
+            <circle r="24" fill="#E0F2F1" stroke="#00897B" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#00897B" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#00897B" font-weight="800">R1</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#00897B" font-weight="700">Service</text>
+          </g>
+          <g transform="translate(580,230)">
+            <circle r="24" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#1565C0" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#1565C0" font-weight="800">R2</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#1565C0" font-weight="700">Loyalty</text>
+          </g>
+          <g transform="translate(720,545)">
+            <circle r="24" fill="#FBE9E7" stroke="#D84315" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#D84315" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#D84315" font-weight="800">R3</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#D84315" font-weight="700">Market</text>
+          </g>
+
+          <!-- Edge Labels -->
+          <text x="240" y="305" font-family="DM Sans" font-size="9" fill="#00897B" font-weight="700" transform="rotate(-25,240,305)">+ invest in service</text>
+          <text x="32" y="430" font-family="DM Sans" font-size="9" fill="#00897B" font-weight="700" transform="rotate(-90,32,430)">+ availability</text>
+          <text x="155" y="640" font-family="DM Sans" font-size="9" fill="#00897B" font-weight="700">+ sales</text>
+          <text x="430" y="555" font-family="DM Sans" font-size="9" fill="#00897B" font-weight="700" transform="rotate(-75,430,555)">+ revenue</text>
+          <text x="395" y="270" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700" transform="rotate(-75,395,270)">+ invest in speed</text>
+          <text x="490" y="65" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700">+ delight</text>
+          <text x="815" y="220" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700" transform="rotate(60,815,220)">+ loyalty</text>
+          <text x="730" y="375" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700">+ revenue</text>
+          <text x="740" y="428" font-family="DM Sans" font-size="9" fill="#D84315" font-weight="700">+ range</text>
+          <text x="960" y="545" font-family="DM Sans" font-size="9" fill="#D84315" font-weight="700" transform="rotate(80,960,545)">+ reach</text>
+          <text x="625" y="620" font-family="DM Sans" font-size="9" fill="#D84315" font-weight="700" transform="rotate(-40,625,620)">+ revenue</text>
+
+          <!-- Callout -->
+          <rect x="80" y="740" width="840" height="42" rx="21" fill="#FFF8E1" stroke="#FFB300" stroke-width="1"/>
+          <text x="105" y="764" font-family="DM Sans" font-size="11" fill="#E65100" font-weight="700">💡</text>
+          <text x="125" y="765" font-family="DM Sans" font-size="11" fill="#424242" font-weight="500">Amazon same-day delivery (R2) → +20% purchase frequency among Prime → more revenue → more logistics investment → virtuous cycle</text>
+        </svg>
+      </div>
+      <div class="explanations cols-3">
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#00897B,#4DB6AC);"></div>
+          <div class="exp-tag" style="color:#00897B;">R1 · Service Loop</div>
+          <h3>Better Service → Fewer Stockouts → More Sales</h3>
+          <p>When revenue grows, firms can <strong>invest in higher service levels</strong> — better forecasting, safety stock, supplier reliability. This leads to <strong>fewer stockouts</strong>, meaning products are always on the shelf when customers want them. Captured demand that would otherwise be lost to competitors flows back as <strong>additional revenue</strong>, completing the virtuous cycle. Research shows that a single stockout event can cause 21–43% of customers to switch to a competitor.</p>
+        </div>
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#1565C0,#42A5F5);"></div>
+          <div class="exp-tag" style="color:#1565C0;">R2 · Loyalty Loop</div>
+          <h3>Faster Fulfilment → Satisfaction → Retention</h3>
+          <p>Revenue enables investment in <strong>faster order fulfilment</strong> — same-day picking, express shipping, automated warehouses. Speed delights customers, raising <strong>satisfaction scores</strong>. Satisfied customers become loyal, driving <strong>higher retention and repeat purchases</strong>. Amazon demonstrated this powerfully: Prime members with same-day delivery access increased their purchase frequency by 20%, generating the revenue that funds further logistics investment.</p>
+        </div>
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#D84315,#FF7043);"></div>
+          <div class="exp-tag" style="color:#D84315;">R3 · Market Loop</div>
+          <h3>Wider Availability → Larger Market → Growth</h3>
+          <p>Growing revenue allows firms to <strong>expand product range</strong> — more SKUs, more categories, more geographies. Wider availability opens up a <strong>larger addressable market</strong>: new customer segments, new regions, and new channels. This expanded market generates <strong>incremental revenue</strong> beyond existing customers, fuelling further expansion. Fisher (1997) showed that innovative product SCs must be designed for this kind of responsive growth.</p>
+        </div>
+      </div>
+    </div>
+    <div class="panel" id="panel2">
+      <div class="diagram-area">
+        <svg viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ap" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6A1B9A"/></marker>
+            <marker id="ai" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#1565C0"/></marker>
+            <marker id="ar" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#C62828"/></marker>
+            <filter id="gc" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+            <pattern id="dots2" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.6" fill="#D0CBC5" opacity="0.5"/></pattern>
+          </defs>
+          <rect width="1000" height="800" fill="url(#dots2)"/>
+
+          <!-- ===== R4: DIRECT COSTS LOOP (left) ===== -->
+          <path class="base-path" d="M 390,385 C 290,350 140,320 120,260 C 60,260 10,340 10,430 C 10,530 50,600 130,615 C 190,640 270,660 330,645 C 400,630 440,560 450,425" fill="none" stroke="#6A1B9A" stroke-width="6"/>
+          <path class="flow-purple" d="M 390,385 C 290,350 140,320 120,260 C 60,260 10,340 10,430 C 10,530 50,600 130,615 C 190,640 270,660 330,645 C 400,630 440,560 450,425" fill="none" stroke="#6A1B9A" stroke-width="3" marker-end="url(#ap)" filter="url(#gc)"/>
+
+          <!-- ===== R5: INDIRECT COSTS LOOP (top) ===== -->
+          <path class="base-path" d="M 460,370 C 430,280 400,190 380,145 C 410,80 500,40 580,40 C 660,40 740,70 780,140 C 810,200 820,280 790,345 C 760,375 700,390 650,390" fill="none" stroke="#1565C0" stroke-width="6"/>
+          <path class="flow-indigo" d="M 460,370 C 430,280 400,190 380,145 C 410,80 500,40 580,40 C 660,40 740,70 780,140 C 810,200 820,280 790,345 C 760,375 700,390 650,390" fill="none" stroke="#1565C0" stroke-width="3" marker-end="url(#ai)" filter="url(#gc)"/>
+
+          <!-- ===== R6: OVERHEAD COSTS LOOP (right) ===== -->
+          <path class="base-path" d="M 640,415 C 720,440 850,420 890,460 C 950,500 965,580 920,640 C 870,700 760,710 670,665 C 590,625 555,535 555,425" fill="none" stroke="#C62828" stroke-width="6"/>
+          <path class="flow-rose" d="M 640,415 C 720,440 850,420 890,460 C 950,500 965,580 920,640 C 870,700 760,710 670,665 C 590,625 555,535 555,425" fill="none" stroke="#C62828" stroke-width="3" marker-end="url(#ar)"/>
+
+          <!-- Central Node -->
+          <g class="central-c">
+            <rect x="390" y="365" width="220" height="56" rx="28" fill="#311B92"/>
+            <text x="500" y="387" text-anchor="middle" font-family="Playfair Display,serif" font-size="15" fill="#FFF" font-weight="800">↓ TOTAL COST</text>
+            <text x="500" y="407" text-anchor="middle" font-family="DM Sans" font-size="10" fill="#CE93D8" font-weight="600">to Serve (SCOR metric)</text>
+          </g>
+
+          <!-- R4 Nodes: Direct Costs -->
+          <rect x="40" y="215" width="175" height="56" rx="28" fill="#FFF" stroke="#6A1B9A" stroke-width="1.8"/>
+          <text x="128" y="237" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#4A148C" font-weight="700">↑ Better Sourcing</text>
+          <text x="128" y="254" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">volume discounts, dual-source</text>
+
+          <rect x="20" y="540" width="190" height="56" rx="28" fill="#FFF" stroke="#6A1B9A" stroke-width="1.8"/>
+          <text x="115" y="562" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#4A148C" font-weight="700">↑ Better Negotiation</text>
+          <text x="115" y="579" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">TCO models, spend analytics</text>
+
+          <rect x="230" y="630" width="190" height="56" rx="28" fill="#FFF" stroke="#6A1B9A" stroke-width="1.8"/>
+          <text x="325" y="652" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#4A148C" font-weight="700">↑ Consolidation</text>
+          <text x="325" y="669" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">combine shipments, fill trucks</text>
+
+          <!-- R5 Nodes: Indirect Costs -->
+          <rect x="290" y="100" width="185" height="56" rx="28" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="383" y="122" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#0D47A1" font-weight="700">↓ Warehousing</text>
+          <text x="383" y="139" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">layout optimisation, automation</text>
+
+          <rect x="600" y="100" width="185" height="56" rx="28" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="693" y="122" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#0D47A1" font-weight="700">↓ Transport Routes</text>
+          <text x="693" y="139" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">TMS optimisation, less fuel</text>
+
+          <rect x="720" y="280" width="185" height="56" rx="28" fill="#FFF" stroke="#1565C0" stroke-width="1.8"/>
+          <text x="813" y="302" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#0D47A1" font-weight="700">↑ Order Automation</text>
+          <text x="813" y="319" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">automate processing & invoicing</text>
+
+          <!-- R6 Nodes: Overheads -->
+          <rect x="810" y="435" width="180" height="56" rx="28" fill="#FFF" stroke="#C62828" stroke-width="1.8"/>
+          <text x="900" y="457" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#B71C1C" font-weight="700">↑ Streamlined</text>
+          <text x="900" y="474" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">S&amp;OP planning cycles</text>
+
+          <rect x="800" y="630" width="185" height="56" rx="28" fill="#FFF" stroke="#C62828" stroke-width="1.8"/>
+          <text x="893" y="652" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#B71C1C" font-weight="700">↓ Less Expediting</text>
+          <text x="893" y="669" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">fewer rush orders & overtime</text>
+
+          <!-- Loop Labels -->
+          <g transform="translate(195,450)">
+            <circle r="24" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#6A1B9A" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#6A1B9A" font-weight="800">R4</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#6A1B9A" font-weight="700">Direct</text>
+          </g>
+          <g transform="translate(570,225)">
+            <circle r="24" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#1565C0" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#1565C0" font-weight="800">R5</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#1565C0" font-weight="700">Indirect</text>
+          </g>
+          <g transform="translate(720,550)">
+            <circle r="24" fill="#FFEBEE" stroke="#C62828" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#C62828" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#C62828" font-weight="800">R6</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="7" fill="#C62828" font-weight="700">Overhead</text>
+          </g>
+
+          <!-- Edge Labels -->
+          <text x="220" y="310" font-family="DM Sans" font-size="9" fill="#6A1B9A" font-weight="700" transform="rotate(-25,220,310)">+ sourcing savings</text>
+          <text x="18" y="420" font-family="DM Sans" font-size="9" fill="#6A1B9A" font-weight="700" transform="rotate(-90,18,420)">+ negotiation power</text>
+          <text x="140" y="635" font-family="DM Sans" font-size="9" fill="#6A1B9A" font-weight="700">+ consolidate loads</text>
+          <text x="435" y="555" font-family="DM Sans" font-size="9" fill="#6A1B9A" font-weight="700" transform="rotate(-75,435,555)">− direct costs</text>
+
+          <text x="400" y="260" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700" transform="rotate(-75,400,260)">+ WH efficiency</text>
+          <text x="490" y="60" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700">+ route optimisation</text>
+          <text x="810" y="215" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700" transform="rotate(55,810,215)">+ automation</text>
+          <text x="725" y="375" font-family="DM Sans" font-size="9" fill="#1565C0" font-weight="700">− indirect costs</text>
+
+          <text x="745" y="428" font-family="DM Sans" font-size="9" fill="#C62828" font-weight="700">+ planning</text>
+          <text x="960" y="545" font-family="DM Sans" font-size="9" fill="#C62828" font-weight="700" transform="rotate(80,960,545)">+ fewer rush</text>
+          <text x="625" y="625" font-family="DM Sans" font-size="9" fill="#C62828" font-weight="700" transform="rotate(-40,625,625)">− overheads</text>
+
+          <!-- Callout -->
+          <rect x="65" y="740" width="870" height="42" rx="21" fill="#F3E5F5" stroke="#CE93D8" stroke-width="1"/>
+          <text x="90" y="764" font-family="DM Sans" font-size="11" fill="#6A1B9A" font-weight="700">💡</text>
+          <text x="110" y="765" font-family="DM Sans" font-size="11" fill="#424242" font-weight="500">All SC costs aggregate into the SCOR "Total Cost to Serve" metric — reported as SC cost % of revenue. Typical range: 5–15% depending on industry.</text>
+        </svg>
+      </div>
+      <div class="explanations cols-3">
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#6A1B9A,#AB47BC);"></div>
+          <div class="exp-tag" style="color:#6A1B9A;">R4 · Direct Costs Loop</div>
+          <h3>Better Sourcing → Negotiation → Consolidation</h3>
+          <p><strong>Better sourcing</strong> means identifying lower-cost suppliers, dual-sourcing critical components to create competition, and leveraging global procurement networks. <strong>Stronger negotiation</strong> uses spend analytics and Total Cost of Ownership (TCO) models to go beyond unit price — factoring in quality, lead time, and risk. <strong>Shipment consolidation</strong> combines orders across business units to fill trucks, reducing per-unit freight cost by 15–30%. Together these directly reduce COGS (Cost of Goods Sold).</p>
+        </div>
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#1565C0,#42A5F5);"></div>
+          <div class="exp-tag" style="color:#1565C0;">R5 · Indirect Costs Loop</div>
+          <h3>Warehousing → Route Optimisation → Automation</h3>
+          <p><strong>Warehouse overheads</strong> are reduced through layout optimisation, shared/multi-user facilities, and automation systems like AS/RS (Automated Storage & Retrieval Systems). <strong>Transport route optimisation</strong> via TMS (Transport Management Systems) software cuts fuel, tolls, and driver hours — typically saving 8–15% on freight. <strong>Order processing automation</strong> replaces manual data entry for orders, invoices, and demand planning, reducing labour costs and error rates simultaneously.</p>
+        </div>
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#C62828,#EF5350);"></div>
+          <div class="exp-tag" style="color:#C62828;">R6 · Overhead Loop</div>
+          <h3>Streamlined Planning → Less Expediting → Fewer Emergencies</h3>
+          <p><strong>Streamlined S&OP</strong> (Sales & Operations Planning) reduces planning cycle time, headcount, and the cost of misalignment between demand and supply plans. <strong>Better forecasting</strong> reduces costly expediting — rush orders, air freight premiums, and overtime shifts that can cost 3–5× normal rates. <strong>Fewer emergency shipments</strong> result from a more resilient, well-planned SC where disruptions are anticipated and buffered. The sum of all these costs is the SCOR metric "Total Cost to Serve."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PANEL 3: REDUCE TIED-UP CAPITAL CLD                           -->
+    <!-- ============================================================ -->
+    <div class="panel" id="panel3">
+      <div class="diagram-area">
+        <svg viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="aw" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#E65100"/></marker>
+            <marker id="af" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#00695C"/></marker>
+            <filter id="gk" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+            <pattern id="dots3" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.6" fill="#D0CBC5" opacity="0.5"/></pattern>
+          </defs>
+          <rect width="1000" height="800" fill="url(#dots3)"/>
+
+          <!-- ===== R7: WORKING CAPITAL LOOP (left + top) ===== -->
+          <!-- WC loop: Capital → Reduce Inventory → Shorten AR → Lengthen AP → back to Capital -->
+          <path class="base-path" d="M 390,380 C 280,340 130,310 100,240 C 50,210 10,290 10,390 C 10,490 30,570 100,600 C 170,640 300,670 380,650 C 440,630 460,550 455,425" fill="none" stroke="#E65100" stroke-width="6"/>
+          <path class="flow-amber" d="M 390,380 C 280,340 130,310 100,240 C 50,210 10,290 10,390 C 10,490 30,570 100,600 C 170,640 300,670 380,650 C 440,630 460,550 455,425" fill="none" stroke="#E65100" stroke-width="3" marker-end="url(#aw)" filter="url(#gk)"/>
+
+          <!-- ===== R8: FIXED ASSETS LOOP (right) ===== -->
+          <!-- FA loop: Capital → Share Warehouses → Lease Fleet → Use 3PLs → back to Capital -->
+          <path class="base-path" d="M 610,380 C 700,340 850,310 900,240 C 950,210 980,290 980,390 C 980,490 960,570 890,600 C 820,640 690,670 610,650 C 550,630 540,550 545,425" fill="none" stroke="#00695C" stroke-width="6"/>
+          <path class="flow-tealdk" d="M 610,380 C 700,340 850,310 900,240 C 950,210 980,290 980,390 C 980,490 960,570 890,600 C 820,640 690,670 610,650 C 550,630 540,550 545,425" fill="none" stroke="#00695C" stroke-width="3" marker-end="url(#af)" filter="url(#gk)"/>
+
+          <!-- Central Node -->
+          <g class="central-k">
+            <rect x="380" y="365" width="240" height="56" rx="28" fill="#BF360C"/>
+            <text x="500" y="386" text-anchor="middle" font-family="Playfair Display,serif" font-size="15" fill="#FFF" font-weight="800">↓ TIED-UP CAPITAL</text>
+            <text x="500" y="406" text-anchor="middle" font-family="DM Sans" font-size="9" fill="#FFCCBC" font-weight="600">Working Capital + Fixed Assets</text>
+          </g>
+
+          <!-- R7 Nodes: Working Capital -->
+          <rect x="30" y="200" width="175" height="56" rx="28" fill="#FFF" stroke="#E65100" stroke-width="1.8"/>
+          <text x="118" y="221" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#BF360C" font-weight="700">↓ Reduce Inventory</text>
+          <text x="118" y="240" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">RM, WIP, finished goods</text>
+
+          <rect x="10" y="480" width="185" height="56" rx="28" fill="#FFF" stroke="#E65100" stroke-width="1.8"/>
+          <text x="103" y="501" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#BF360C" font-weight="700">↓ Shorten AR Days</text>
+          <text x="103" y="518" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">collect from customers faster</text>
+
+          <rect x="180" y="605" width="195" height="56" rx="28" fill="#FFF" stroke="#E65100" stroke-width="1.8"/>
+          <text x="278" y="626" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#BF360C" font-weight="700">↑ Lengthen AP Days</text>
+          <text x="278" y="643" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">negotiate longer payment terms</text>
+
+          <!-- R8 Nodes: Fixed Assets -->
+          <rect x="800" y="200" width="175" height="56" rx="28" fill="#FFF" stroke="#00695C" stroke-width="1.8"/>
+          <text x="888" y="221" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↑ Share Warehouses</text>
+          <text x="888" y="240" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">multi-user, shared facilities</text>
+
+          <rect x="810" y="480" width="175" height="56" rx="28" fill="#FFF" stroke="#00695C" stroke-width="1.8"/>
+          <text x="898" y="501" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↑ Lease, Don't Buy</text>
+          <text x="898" y="518" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">fleet, equipment, vehicles</text>
+
+          <rect x="630" y="605" width="195" height="56" rx="28" fill="#FFF" stroke="#00695C" stroke-width="1.8"/>
+          <text x="728" y="626" text-anchor="middle" font-family="DM Sans" font-size="11" fill="#004D40" font-weight="700">↑ Use 3PLs</text>
+          <text x="728" y="643" text-anchor="middle" font-family="DM Sans" font-size="8" fill="#7A8A86">third-party logistics providers</text>
+
+          <!-- Loop Labels -->
+          <g transform="translate(200,430)">
+            <circle r="24" fill="#FFF3E0" stroke="#E65100" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#E65100" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#E65100" font-weight="800">R7</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="6" fill="#E65100" font-weight="700">Working Cap.</text>
+          </g>
+          <g transform="translate(800,430)">
+            <circle r="24" fill="#E0F2F1" stroke="#00695C" stroke-width="1.5" opacity="0.9"/>
+            <circle r="20" fill="none" stroke="#00695C" stroke-width="1" stroke-dasharray="4 8" opacity="0.5" style="transform-origin:0 0;animation:loopSpin 8s linear infinite;"/>
+            <text y="-3" text-anchor="middle" font-family="Playfair Display,serif" font-size="14" fill="#00695C" font-weight="800">R8</text>
+            <text y="10" text-anchor="middle" font-family="DM Sans" font-size="6" fill="#00695C" font-weight="700">Fixed Assets</text>
+          </g>
+
+          <!-- Edge Labels R7 -->
+          <text x="200" y="280" font-family="DM Sans" font-size="9" fill="#E65100" font-weight="700" transform="rotate(-25,200,280)">+ lean inventory</text>
+          <text x="18" y="400" font-family="DM Sans" font-size="9" fill="#E65100" font-weight="700" transform="rotate(-90,18,400)">+ faster collection</text>
+          <text x="110" y="600" font-family="DM Sans" font-size="9" fill="#E65100" font-weight="700">+ longer terms</text>
+          <text x="440" y="560" font-family="DM Sans" font-size="9" fill="#E65100" font-weight="700" transform="rotate(-75,440,560)">− working cap.</text>
+
+          <!-- Edge Labels R8 -->
+          <text x="780" y="280" font-family="DM Sans" font-size="9" fill="#00695C" font-weight="700" transform="rotate(25,780,280)">+ shared space</text>
+          <text x="975" y="400" font-family="DM Sans" font-size="9" fill="#00695C" font-weight="700" transform="rotate(90,975,400)">+ lease vs buy</text>
+          <text x="860" y="600" font-family="DM Sans" font-size="9" fill="#00695C" font-weight="700">+ outsource logistics</text>
+          <text x="558" y="560" font-family="DM Sans" font-size="9" fill="#00695C" font-weight="700" transform="rotate(75,558,560)">− fixed assets</text>
+
+          <!-- Callout -->
+          <rect x="65" y="740" width="870" height="42" rx="21" fill="#FFF3E0" stroke="#FFB74D" stroke-width="1"/>
+          <text x="90" y="764" font-family="DM Sans" font-size="11" fill="#E65100" font-weight="700">💡</text>
+          <text x="110" y="765" font-family="DM Sans" font-size="11" fill="#424242" font-weight="500">Every euro freed from SC capital (inventory, warehouses, fleet) can be returned to shareholders or reinvested. SCOR metric: C2C (Cash-to-Cash) Cycle Time.</text>
+        </svg>
+      </div>
+      <div class="explanations cols-2">
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#E65100,#FF8F00);"></div>
+          <div class="exp-tag" style="color:#E65100;">R7 · Working Capital Loop</div>
+          <h3>Reduce Inventory → Shorten AR → Lengthen AP</h3>
+          <p><strong>Reduce inventory levels</strong> across all three categories: raw materials (RM) through just-in-time sourcing, work-in-progress (WIP) through lean manufacturing and shorter production cycles, and finished goods (FG) through better demand forecasting and postponement strategies. <strong>Shorten Accounts Receivable (AR) days</strong> by collecting from customers faster — electronic invoicing, early payment discounts, and stricter credit terms. <strong>Lengthen Accounts Payable (AP) days</strong> where possible by negotiating longer payment terms with suppliers. The net effect is a shorter Cash-to-Cash (C2C) cycle: C2C = AR Days + Days of Supply − AP Days. A shorter C2C means less capital is tied up in the SC. Companies like Walmart and Amazon achieve <em>negative</em> C2C — they receive cash before paying suppliers.</p>
+        </div>
+        <div class="exp-card">
+          <div class="exp-bar" style="background:linear-gradient(90deg,#00695C,#26A69A);"></div>
+          <div class="exp-tag" style="color:#00695C;">R8 · Fixed Assets Loop</div>
+          <h3>Share Warehouses → Lease Fleet → Use 3PLs</h3>
+          <p><strong>Share warehouses</strong> through multi-user distribution centres or public warehousing rather than owning dedicated facilities. This converts fixed costs to variable costs and reduces capital tied up in buildings and land. <strong>Lease rather than buy</strong> fleet vehicles, forklifts, and material handling equipment — preserving capital while maintaining operational capability. <strong>Use 3PLs (Third-Party Logistics providers)</strong> like DHL, XPO, or Kuehne+Nagel to outsource warehousing, transport, and fulfilment entirely. 3PLs spread fixed asset costs across multiple clients, achieving economies of scale that individual firms cannot. Every euro freed from fixed assets improves Return on SC Fixed Assets (ROFA) — a key SCOR asset management metric — and can be returned to shareholders or reinvested in growth.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end panel-wrap -->
+
+  <div class="footer-row">
+    <div class="legend" id="legend1">
+      <div class="legend-item"><div class="legend-dot" style="background:#00897B;"></div>R1 · Service</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1565C0;"></div>R2 · Loyalty</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#D84315;"></div>R3 · Market</div>
+      <div class="legend-item"><span style="color:#999;font-size:10px;">+ = reinforcing causality</span></div>
+    </div>
+    <div class="legend" id="legend2" style="display:none;">
+      <div class="legend-item"><div class="legend-dot" style="background:#6A1B9A;"></div>R4 · Direct Costs</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1565C0;"></div>R5 · Indirect Costs</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#C62828;"></div>R6 · Overheads</div>
+      <div class="legend-item"><span style="color:#999;font-size:10px;">+ = reinforcing causality</span></div>
+    </div>
+    <div class="legend" id="legend3" style="display:none;">
+      <div class="legend-item"><div class="legend-dot" style="background:#E65100;"></div>R7 · Working Capital</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00695C;"></div>R8 · Fixed Assets</div>
+      <div class="legend-item"><span style="color:#999;font-size:10px;">+ = reinforcing causality</span></div>
+    </div>
+    <div class="credit">Produced by Dr Wael Rashwan</div>
+  </div>
+  <div class="footnote">MN 312 — Supply Chain Metrics · EVA Levers 1, 2 &amp; 3 · Based on Fisher (1997), Chopra &amp; Meindl (2019), Lambert &amp; Pohlen (2001)</div>
+</div>
+
+<script>
+function switchTab(n) {
+  document.getElementById('panel1').classList.remove('active');
+  document.getElementById('panel2').classList.remove('active');
+  document.getElementById('panel3').classList.remove('active');
+  document.getElementById('tab1').className = 'tab';
+  document.getElementById('tab2').className = 'tab';
+  document.getElementById('tab3').className = 'tab';
+  document.getElementById('legend1').style.display = 'none';
+  document.getElementById('legend2').style.display = 'none';
+  document.getElementById('legend3').style.display = 'none';
+
+  if (n === 1) {
+    document.getElementById('panel1').classList.add('active');
+    document.getElementById('tab1').className = 'tab active-turnover';
+    document.getElementById('legend1').style.display = 'flex';
+  } else if (n === 2) {
+    document.getElementById('panel2').classList.add('active');
+    document.getElementById('tab2').className = 'tab active-cost';
+    document.getElementById('legend2').style.display = 'flex';
+  } else {
+    document.getElementById('panel3').classList.add('active');
+    document.getElementById('tab3').className = 'tab active-capital';
+    document.getElementById('legend3').style.display = 'flex';
+  }
+}
+</script>
+</body>
+</html>
